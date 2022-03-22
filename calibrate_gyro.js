@@ -41,23 +41,29 @@ var NUM_READS = 500;
  */
 
 // Instantiate and initialize.
-var sleep = require('sleep');
+//var sleep = require('sleep');
+function msleep(n) {
+	Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, n);
+}
 
+function sleep(n) {
+	msleep(n * 1000);
+}
 var mpu9255 = require('./mpu9255.js');
 // Instantiate and initialize.
 var mpu = new mpu9255({
-    // i2c path (default is '/dev/i2c-1')
-    device: '/dev/i2c-1',
+	// i2c path (default is '/dev/i2c-1')
+	device: '/dev/i2c-1',
 
-    // mpu9250 address (default is 0x68)
-    address: 0x68,
+	// mpu9250 address (default is 0x68)
+	address: 0x68,
 
-    // Enable/Disable magnetometer data (default false)
-    UpMagneto: false,
+	// Enable/Disable magnetometer data (default false)
+	UpMagneto: false,
 
-    // If true, all values returned will be scaled to actual units (default false).
-    // If false, the raw values from the device will be returned.
-    scaleValues: true
+	// If true, all values returned will be scaled to actual units (default false).
+	// If false, the raw values from the device will be returned.
+	scaleValues: true
 });
 
 function gyroBiasCalibrationSync() {
@@ -73,7 +79,7 @@ function gyroBiasCalibrationSync() {
 		avg.x += gyroValues[0];
 		avg.y += gyroValues[1];
 		avg.z += gyroValues[2];
-		sleep.usleep(5000);
+		msleep(5);
 	}
 
 	avg.x /= -NUM_READS;
@@ -83,8 +89,8 @@ function gyroBiasCalibrationSync() {
 	return avg;
 }
 
-
 if (mpu.initialize()) {
-    console.log('Calibrating.');
-    console.log('GYRO_OFFSET =', gyroBiasCalibrationSync());
+	console.log('Calibrating.');
+	console.log('GYRO_OFFSET =', gyroBiasCalibrationSync());
 }
+//console.log('GYRO_OFFSET =', gyroBiasCalibrationSync());

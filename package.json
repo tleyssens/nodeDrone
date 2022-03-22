@@ -1,11 +1,16 @@
 {
-    "name": "NodeDrone",
+    "name": "nodedrone",
     "version": "1.0.0",
     "keywords": ["Drone", "Raspberrypi", "NodeJS", "Quadcopter", "Autonomous"],
     "author": "David McNeill",
     "contributors": [],
     "dependencies": {
-        "timer-node",
-        
+        "timer-node": "~5.0.5",
+        "i2c-bus": "~5.2.2",
+        "express": "~4.17.3",
+        "socket.io": "~4.4.1",
+        "ahrs": "~1.3.0",
+        "node-gpsd": "~0.3.2",
+        "pigpio": "~3.3.1"
     }
 }

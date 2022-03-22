@@ -43,7 +43,14 @@ var NUM_READS = 300;
  */
 
 // Instantiate and initialize.
-var sleep = require('sleep');
+//var sleep = require('sleep');
+function msleep(n) {
+    Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, n);
+}
+
+function sleep(n) {
+    msleep(n * 1000);
+}
 
 var mpu9255 = require('./mpu9255.js');
 // Instantiate and initialize.
@@ -71,7 +78,11 @@ var directions = {
     'down': -1
 };
 var offset = [0, 0, 0];
-var scale = [[0, 0], [0, 0], [0, 0]];
+var scale = [
+    [0, 0],
+    [0, 0],
+    [0, 0]
+];
 
 if (mpu.initialize()) {
     runNextCapture();
@@ -114,7 +125,7 @@ function calibrateAxis() {
                 offset[a] += accelValues[a];
             }
         }
-        sleep.usleep(5000);
+        msleep(5);
     }
 }
 

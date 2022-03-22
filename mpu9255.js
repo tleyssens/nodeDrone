@@ -1,7 +1,15 @@
 var i2c = require('i2c-bus');
-var sleep = require('sleep');
-var extend = require('extend');
+//var sleep = require('sleep');
+//var extend = require('extend');
 var i2c1 = i2c.openSync(1);
+
+function msleep(n) {
+    Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, n);
+}
+
+function sleep(n) {
+    msleep(n * 1000);
+}
 
 /*****************/
 /** MPU9250 MAP **/
@@ -22,7 +30,7 @@ var MPU9255 = {
     RA_ACCEL_CONFIG_2: 0x1D,
 
     RA_INT_PIN_CFG: 0x37,
-    INTCFG_BYTE: 0x02,// BY_PASS_MODE: 0x02,
+    INTCFG_BYTE: 0x02, // BY_PASS_MODE: 0x02,
 
     ACCEL_XOUT_H: 0x3B,
     ACCEL_XOUT_L: 0x3C,
@@ -66,9 +74,17 @@ var MPU9255 = {
 
     USERCTRL_BYTE: 0x00,
 
-    DEFAULT_GYRO_OFFSET: { x: 0, y: 0, z: 0 },
+    DEFAULT_GYRO_OFFSET: {
+        x: 0,
+        y: 0,
+        z: 0
+    },
     DEFAULT_ACCEL_CALIBRATION: {
-        offset: {x: 0, y: 0, z: 0},
+        offset: {
+            x: 0,
+            y: 0,
+            z: 0
+        },
         scale: {
             x: [-1, 1],
             y: [-1, 1],
@@ -86,19 +102,19 @@ var AK8963 = {
     WHO_AM_I: 0x00, // should return 0x48,
     WHO_AM_I_RESPONSE: 0x48,
     INFO: 0x01,
-    ST1: 0x02,  // data ready status bit 0
-    XOUT_L: 0x03,  // data
+    ST1: 0x02, // data ready status bit 0
+    XOUT_L: 0x03, // data
     XOUT_H: 0x04,
     YOUT_L: 0x05,
     YOUT_H: 0x06,
     ZOUT_L: 0x07,
     ZOUT_H: 0x08,
-    ST2: 0x09,  // Data overflow bit 3 and data read error status bit 2
-    CNTL: 0x0A,  // Power down (0000), single-measurement (0001), self-test (1000) and Fuse ROM (1111) modes on bits 3:0
-    ASTC: 0x0C,  // Self test control
-    
-    ASAX: 0x10,  // Fuse ROM x-axis sensitivity adjustment value
-    ASAY: 0x11,  // Fuse ROM y-axis sensitivity adjustment value
+    ST2: 0x09, // Data overflow bit 3 and data read error status bit 2
+    CNTL: 0x0A, // Power down (0000), single-measurement (0001), self-test (1000) and Fuse ROM (1111) modes on bits 3:0
+    ASTC: 0x0C, // Self test control
+
+    ASAX: 0x10, // Fuse ROM x-axis sensitivity adjustment value
+    ASAY: 0x11, // Fuse ROM y-axis sensitivity adjustment value
     ASAZ: 0x12,
 
     CNTL_MODE_OFF: 0x00, // Power-down mode
@@ -107,11 +123,19 @@ var AK8963 = {
     CNTL_MODE_CONTINUE_MEASURE_2: 0x06, // Continuous measurement mode 2 - Sensor is measured periodically at 100Hz
     CNTL_MODE_EXT_TRIG_MEASURE: 0x04, // External trigger measurement mode
     CNTL_MODE_SELF_TEST_MODE: 0x08, // Self-test mode
-    CNTL_MODE_FUSE_ROM_ACCESS: 0x0F,  // Fuse ROM access mode
+    CNTL_MODE_FUSE_ROM_ACCESS: 0x0F, // Fuse ROM access mode
 
     DEFAULT_CALIBRATION: {
-        offset: { x: 0, y: 0, z: 0 },
-        scale: { x: 1, y: 1, z: 1 }
+        offset: {
+            x: 0,
+            y: 0,
+            z: 0
+        },
+        scale: {
+            x: 1,
+            y: 1,
+            z: 1
+        }
     }
 };
 
@@ -121,7 +145,7 @@ var AK8963 = {
 // /** ---------------------------------------------------------------------- **/ //
 ////////////////////////////////////////////////////////////////////////////////////
 
-var mpu9255 = function(cfg) {
+var mpu9255 = function (cfg) {
     cfg = cfg || {};
     if (typeof cfg !== 'object') {
         cfg = {};
@@ -140,36 +164,38 @@ var mpu9255 = function(cfg) {
         accelCalibration: MPU9255.DEFAULT_ACCEL_CALIBRATION
     };
 
-    var config = extend({}, _default, cfg);
+    //var config = extend({}, _default, cfg);
+    var config = {}
+    config = Object.assign({}, _default, cfg)
     this._config = config;
 };
 
-mpu9255.prototype.initialize = function() {
+mpu9255.prototype.initialize = function () {
     this.debug = new debugConsole(this._config.DEBUG);
     this.debug.Log('INFO', 'Initialization MPU9250 ....');
 
     // clear configuration
     i2c1.writeByteSync(MPU9255.I2C_ADDRESS_AD0_LOW, MPU9255.RA_PWR_MGMT_1, MPU9255.PWR1_DEVICE_RESET_BYTE);
     this.debug.Log('INFO', 'Reset configuration MPU9250.');
-    sleep.usleep(10000);
+    msleep(10);
 
     // define clock source
     this.setClockSource(MPU9255.CLOCK_PLL_XGYRO);
-    sleep.usleep(10000);
+    msleep(10);
 
     // define gyro range
     var gyro_fs = [MPU9255.GYRO_FS_250, MPU9255.GYRO_FS_500, MPU9255.GYRO_FS_1000, MPU9255.GYRO_FS_2000];
     var gyro_value = MPU9255.GYRO_FS_250;
     if (this._config.GYRO_FS > -1 && this._config.GYRO_FS < 4) gyro_value = gyro_fs[this._config.GYRO_FS];
     this.setFullScaleGyroRange(gyro_value);
-    sleep.usleep(10000);
+    msleep(10);
 
     // define accel range
     var accel_fs = [MPU9255.ACCEL_FS_2, MPU9255.ACCEL_FS_4, MPU9255.ACCEL_FS_8, MPU9255.ACCEL_FS_16];
     var accel_value = MPU9255.ACCEL_FS_8;
     if (this._config.ACCEL_FS > -1 && this._config.ACCEL_FS < 4) accel_value = accel_fs[this._config.ACCEL_FS];
     this.setFullScaleAccelRange(accel_value);
-    sleep.usleep(10000);
+    msleep(10);
 
     if (this._config.UpMagneto) {
         this.debug.Log('INFO', 'Enabled magnetometer. Starting initialization ....');
@@ -191,17 +217,17 @@ mpu9255.prototype.initialize = function() {
     return this.testDevice();
 };
 
-mpu9255.prototype.testDevice = function() {
-    return (this.getIDDevice() === 0x73);
+mpu9255.prototype.testDevice = function () {
+    return (this.getIDDevice() === 0x71);
 };
 
-mpu9255.prototype.enableMagnetometer = function() {
+mpu9255.prototype.enableMagnetometer = function () {
     if (i2c1) {
         this.setUSER_CTRL(MPU9255.USERCTRL_BYTE);
-        sleep.usleep(100000);
+        msleep(100);
 
         this.setINT_CFG(MPU9255.INTCFG_BYTE);
-        sleep.usleep(100000);
+        msleep(100);
 
         this.ak8963 = new ak8963(this._config);
         return true;
@@ -209,9 +235,9 @@ mpu9255.prototype.enableMagnetometer = function() {
     return false;
 };
 
-mpu9255.prototype.getIDDevice = function() {
+mpu9255.prototype.getIDDevice = function () {
     if (i2c1) {
-        return i2c1.readByteSync(MPU9255.I2C_ADDRESS_AD0_LOW,MPU9255.WHO_AM_I);
+        return i2c1.readByteSync(MPU9255.I2C_ADDRESS_AD0_LOW, MPU9255.WHO_AM_I);
     }
     return false;
 };
@@ -228,7 +254,7 @@ function scaleAccel(val, offset, scalerArr) {
     }
 }
 
-mpu9255.prototype.getMotion6 = function() {
+mpu9255.prototype.getMotion6 = function () {
     if (i2c1) {
         const buffer = Buffer.from(new ArrayBuffer(14));
         i2c1.readI2cBlockSync(MPU9255.I2C_ADDRESS_AD0_LOW, MPU9255.ACCEL_XOUT_H, 14, buffer);
@@ -252,10 +278,10 @@ mpu9255.prototype.getMotion6 = function() {
     return false;
 };
 
-mpu9255.prototype.getMotion9 = function() {
+mpu9255.prototype.getMotion9 = function () {
     if (i2c1) {
         var mpudata = this.getMotion6();
-    var magdata;
+        var magdata;
         if (this.ak8963) {
             magdata = this.ak8963.getMagAttitude();
         } else {
@@ -266,7 +292,7 @@ mpu9255.prototype.getMotion9 = function() {
     return false;
 };
 
-mpu9255.prototype.getAccel = function() {
+mpu9255.prototype.getAccel = function () {
     if (i2c1) {
         const buffer = Buffer.from(new ArrayBuffer(6));
         i2c1.readI2cBlockSync(MPU9255.I2C_ADDRESS_AD0_LOW, MPU9255.ACCEL_XOUT_H, 6, buffer);
@@ -285,7 +311,7 @@ mpu9255.prototype.getAccel = function() {
     return false;
 };
 
-mpu9255.prototype.getGyro = function() {
+mpu9255.prototype.getGyro = function () {
     if (i2c1) {
         const buffer = Buffer.from(new ArrayBuffer(6));
         i2c1.readI2cBlockSync(MPU9255.I2C_ADDRESS_AD0_LOW, MPU9255.GYRO_XOUT_H, 6, buffer);
@@ -299,14 +325,14 @@ mpu9255.prototype.getGyro = function() {
     return false;
 };
 
-mpu9255.prototype.getClockSource = function() {
+mpu9255.prototype.getClockSource = function () {
     if (i2c1) {
         return i2c1.readByteSync(MPU9255.I2C_ADDRESS_AD0_LOW, MPU9255.RA_PWR_MGMT_1) & 0x07;
     }
     return false;
 };
 
-mpu9255.prototype.getFullScaleGyroRange = function() {
+mpu9255.prototype.getFullScaleGyroRange = function () {
     if (i2c1) {
         var byte = i2c1.readByteSync(MPU9255.I2C_ADDRESS_AD0_LOW, MPU9255.RA_GYRO_CONFIG);
         byte = byte & 0x18;
@@ -316,62 +342,62 @@ mpu9255.prototype.getFullScaleGyroRange = function() {
     return false;
 };
 
-mpu9255.prototype.getGyroPowerSettings = function() {
+mpu9255.prototype.getGyroPowerSettings = function () {
     if (i2c1) {
         return i2c1.readByteSync(MPU9255.I2C_ADDRESS_AD0_LOW, MPU9255.RA_PWR_MGMT_2);
     }
     return false;
 };
 
-mpu9255.prototype.getAccelPowerSettings = function() {
+mpu9255.prototype.getAccelPowerSettings = function () {
     if (i2c1) {
-        return i2c1.readByteSync(MPU9255.I2C_ADDRESS_AD0_LOW,MPU9255.RA_PWR_MGMT_2);
+        return i2c1.readByteSync(MPU9255.I2C_ADDRESS_AD0_LOW, MPU9255.RA_PWR_MGMT_2);
     }
     return false;
 };
 
-mpu9255.prototype.getFullScaleAccelRange = function() {
+mpu9255.prototype.getFullScaleAccelRange = function () {
     if (i2c1) {
-        return i2c1.readByteSync(MPU9255.I2C_ADDRESS_AD0_LOW,MPU9255.RA_ACCEL_CONFIG_1);
+        return i2c1.readByteSync(MPU9255.I2C_ADDRESS_AD0_LOW, MPU9255.RA_ACCEL_CONFIG_1);
     }
     return false;
 };
 
-mpu9255.prototype.getINT_CFG = function() {
+mpu9255.prototype.getINT_CFG = function () {
     if (i2c1) {
-        return i2c1.readByteSync(MPU9255.I2C_ADDRESS_AD0_LOW,MPU9255.RA_INT_PIN_CFG);
+        return i2c1.readByteSync(MPU9255.I2C_ADDRESS_AD0_LOW, MPU9255.RA_INT_PIN_CFG);
     }
     return false;
 };
 
-mpu9255.prototype.getUSER_CTRL = function() {
+mpu9255.prototype.getUSER_CTRL = function () {
     if (i2c1) {
-        return i2c1.readByteSync(MPU9255.I2C_ADDRESS_AD0_LOW,MPU9255.RA_USER_CTRL);
+        return i2c1.readByteSync(MPU9255.I2C_ADDRESS_AD0_LOW, MPU9255.RA_USER_CTRL);
     }
     return false;
 };
 
 //Rotation in degrees X direction
-mpu9255.prototype.getRoll = function(value) {
+mpu9255.prototype.getRoll = function (value) {
     var roll_accel = (Math.atan2(value[0], value[2]) + Math.PI) * (180 / Math.PI) - 180;
-    var roll = (0.98*value[3] + 0.02*roll_accel);//use weights of gyro and accel
+    var roll = (0.98 * value[3] + 0.02 * roll_accel); //use weights of gyro and accel
     return roll;
 };
 
 //Rotation in degrees Y direction
-mpu9255.prototype.getPitch = function(value) {
+mpu9255.prototype.getPitch = function (value) {
     var pitch_accel = (Math.atan2(value[1], value[2]) + Math.PI) * (180 / Math.PI) - 180;
-    var pitch = (0.98*value[4] + 0.02*pitch_accel);//use weights of gyro and accel
-    return pitch; 
+    var pitch = (0.98 * value[4] + 0.02 * pitch_accel); //use weights of gyro and accel
+    return pitch;
 };
 
 //Rotation in degrees Z direction
-mpu9255.prototype.getYaw = function(value) {
+mpu9255.prototype.getYaw = function (value) {
     var roll_accel = (Math.atan2(value[0], value[2]) + Math.PI) * (180 / Math.PI) - 180;
-    var roll = (0.98*value[3] + 0.02*roll_accel);//use weights of gyro and accel
+    var roll = (0.98 * value[3] + 0.02 * roll_accel); //use weights of gyro and accel
     var pitch_accel = (Math.atan2(value[1], value[2]) + Math.PI) * (180 / Math.PI) - 180;
-    var pitch = (0.98*value[4] + 0.02*pitch_accel);//use weights of gyro and accel
-    var yaw = Math.atan2(-pitch,roll) * (180 / Math.PI);
+    var pitch = (0.98 * value[4] + 0.02 * pitch_accel); //use weights of gyro and accel
+    var yaw = Math.atan2(-pitch, roll) * (180 / Math.PI);
     if (yaw > 360) {
         yaw -= 360;
     } else if (yaw < 0) {
@@ -383,45 +409,45 @@ mpu9255.prototype.getYaw = function(value) {
 
 /**---------------------|[ SET ]|--------------------**/
 
-mpu9255.prototype.setClockSource = function(adrs) {
+mpu9255.prototype.setClockSource = function (adrs) {
     if (i2c1) {
-        return i2c1.writeByteSync(MPU9255.I2C_ADDRESS_AD0_LOW,MPU9255.RA_PWR_MGMT_1,adrs);
+        return i2c1.writeByteSync(MPU9255.I2C_ADDRESS_AD0_LOW, MPU9255.RA_PWR_MGMT_1, adrs);
     }
     return false;
 };
 
-mpu9255.prototype.setFullScaleGyroRange = function(adrs) {
+mpu9255.prototype.setFullScaleGyroRange = function (adrs) {
     if (i2c1) {
         if (this._config.scaleValues) {
             this.gyroScalarInv = 1 / MPU9255.GYRO_SCALE_FACTOR[adrs];
         } else {
             this.gyroScalarInv = 1;
         }
-        return i2c1.writeByteSync(MPU9255.I2C_ADDRESS_AD0_LOW,MPU9255.RA_GYRO_CONFIG, adrs);
+        return i2c1.writeByteSync(MPU9255.I2C_ADDRESS_AD0_LOW, MPU9255.RA_GYRO_CONFIG, adrs);
     }
     return false;
 };
 
-mpu9255.prototype.setFullScaleAccelRange = function(adrs) {
+mpu9255.prototype.setFullScaleAccelRange = function (adrs) {
     if (i2c1) {
         if (this._config.scaleValues) {
             this.accelScalarInv = 1 / MPU9255.ACCEL_SCALE_FACTOR[adrs];
         } else {
             this.accelScalarInv = 1;
         }
-        return i2c1.writeByteSync(MPU9255.I2C_ADDRESS_AD0_LOW,MPU9255.RA_ACCEL_CONFIG_1, adrs);
+        return i2c1.writeByteSync(MPU9255.I2C_ADDRESS_AD0_LOW, MPU9255.RA_ACCEL_CONFIG_1, adrs);
     }
     return false;
 };
 
-mpu9255.prototype.setUSER_CTRL = function(adrs) {
+mpu9255.prototype.setUSER_CTRL = function (adrs) {
     if (i2c1) {
         return i2c1.writeByteSync(MPU9255.I2C_ADDRESS_AD0_LOW, MPU9255.RA_USER_CTRL, adrs);
     }
     return false;
 };
 
-mpu9255.prototype.setINT_CFG = function(adrs) {
+mpu9255.prototype.setINT_CFG = function (adrs) {
     if (i2c1) {
         return i2c1.writeByteSync(MPU9255.I2C_ADDRESS_AD0_LOW, MPU9255.RA_INT_PIN_CFG, adrs);
     }
@@ -430,7 +456,7 @@ mpu9255.prototype.setINT_CFG = function(adrs) {
 
 /**---------------------|[ Print ]|--------------------**/
 
-mpu9255.prototype.printSettings = function() {
+mpu9255.prototype.printSettings = function () {
     var CLK_RNG = [
         '0 (Internal 20MHz oscillator)',
         '1 (Auto selects the best available clock source)',
@@ -442,11 +468,11 @@ mpu9255.prototype.printSettings = function() {
         '7 (Stops the clock and keeps timing generator in reset)'
     ];
     this.debug.Log('INFO', 'MPU9250:');
-	this.debug.Log('INFO', '--> Device address: 0x' + this._config.address.toString(16));
-	this.debug.Log('INFO', '--> i2c bus: ' + this._config.device);
+    this.debug.Log('INFO', '--> Device address: 0x' + this._config.address.toString(16));
+    this.debug.Log('INFO', '--> i2c bus: ' + this._config.device);
     this.debug.Log('INFO', '--> Device ID: 0x' + this.getIDDevice().toString(16));
     this.debug.Log('INFO', '--> BYPASS enabled: ' + (this.getINT_CFG ? 'Yes' : 'No'));
-	this.debug.Log('INFO', '--> i2c Master Mode: ' + (this.getUSER_CTRL === 1 ? 'Enabled' : 'Disabled'));
+    this.debug.Log('INFO', '--> i2c Master Mode: ' + (this.getUSER_CTRL === 1 ? 'Enabled' : 'Disabled'));
     this.debug.Log('INFO', '--> Power Management (0x6B, 0x6C):');
     this.debug.Log('INFO', '  --> Clock Source: ' + CLK_RNG[this.getClockSource()]);
     this.debug.Log('INFO', '  --> Accel enabled (x, y, z): ' + vectorToYesNo(this.getAccelPowerSettings()));
@@ -462,31 +488,31 @@ function vectorToYesNo(v) {
     return str;
 }
 
-mpu9255.prototype.printAccelSettings = function() {
-    var FS_RANGE = [ '±2g (0)', '±4g (1)', '±8g (2)', '±16g (3)' ];
-	this.debug.Log('INFO', 'Accelerometer:');
-	this.debug.Log('INFO', '--> Full Scale Range (0x1C): ' + FS_RANGE[this.getFullScaleAccelRange()]);
-	this.debug.Log('INFO', '--> Scalar: 1/' + (1 / this.accelScalarInv));
-	this.debug.Log('INFO', '--> Calibration:');
-	this.debug.Log('INFO', '  --> Offset: ');
-	this.debug.Log('INFO', '    --> x: ' + this._config.accelCalibration.offset.x);
-	this.debug.Log('INFO', '    --> y: ' + this._config.accelCalibration.offset.y);
-	this.debug.Log('INFO', '    --> z: ' + this._config.accelCalibration.offset.z);
-	this.debug.Log('INFO', '  --> Scale: ');
-	this.debug.Log('INFO', '    --> x: ' + this._config.accelCalibration.scale.x);
-	this.debug.Log('INFO', '    --> y: ' + this._config.accelCalibration.scale.y);
-	this.debug.Log('INFO', '    --> z: ' + this._config.accelCalibration.scale.z);
+mpu9255.prototype.printAccelSettings = function () {
+    var FS_RANGE = ['±2g (0)', '±4g (1)', '±8g (2)', '±16g (3)'];
+    this.debug.Log('INFO', 'Accelerometer:');
+    this.debug.Log('INFO', '--> Full Scale Range (0x1C): ' + FS_RANGE[this.getFullScaleAccelRange()]);
+    this.debug.Log('INFO', '--> Scalar: 1/' + (1 / this.accelScalarInv));
+    this.debug.Log('INFO', '--> Calibration:');
+    this.debug.Log('INFO', '  --> Offset: ');
+    this.debug.Log('INFO', '    --> x: ' + this._config.accelCalibration.offset.x);
+    this.debug.Log('INFO', '    --> y: ' + this._config.accelCalibration.offset.y);
+    this.debug.Log('INFO', '    --> z: ' + this._config.accelCalibration.offset.z);
+    this.debug.Log('INFO', '  --> Scale: ');
+    this.debug.Log('INFO', '    --> x: ' + this._config.accelCalibration.scale.x);
+    this.debug.Log('INFO', '    --> y: ' + this._config.accelCalibration.scale.y);
+    this.debug.Log('INFO', '    --> z: ' + this._config.accelCalibration.scale.z);
 };
 
-mpu9255.prototype.printGyroSettings = function() {
+mpu9255.prototype.printGyroSettings = function () {
     var FS_RANGE = ['+250dps (0)', '+500 dps (1)', '+1000 dps (2)', '+2000 dps (3)'];
-	this.debug.Log('INFO', 'Gyroscope:');
+    this.debug.Log('INFO', 'Gyroscope:');
     this.debug.Log('INFO', '--> Full Scale Range (0x1B): ' + FS_RANGE[this.getFullScaleGyroRange()]);
-	this.debug.Log('INFO', '--> Scalar: 1/' + (1 / this.gyroScalarInv));
-	this.debug.Log('INFO', '--> Bias Offset:');
-	this.debug.Log('INFO', '  --> x: ' + this._config.gyroBiasOffset.x);
-	this.debug.Log('INFO', '  --> y: ' + this._config.gyroBiasOffset.y);
-	this.debug.Log('INFO', '  --> z: ' + this._config.gyroBiasOffset.z);
+    this.debug.Log('INFO', '--> Scalar: 1/' + (1 / this.gyroScalarInv));
+    this.debug.Log('INFO', '--> Bias Offset:');
+    this.debug.Log('INFO', '  --> x: ' + this._config.gyroBiasOffset.x);
+    this.debug.Log('INFO', '  --> y: ' + this._config.gyroBiasOffset.y);
+    this.debug.Log('INFO', '  --> z: ' + this._config.gyroBiasOffset.z);
 };
 
 ////////////////////////////////////////////////////////////////////////////////////
@@ -495,20 +521,20 @@ mpu9255.prototype.printGyroSettings = function() {
 // /** ---------------------------------------------------------------------- **/ //
 ////////////////////////////////////////////////////////////////////////////////////
 
-var ak8963 = function(config, callback) {
-    callback = callback || function() {};
+var ak8963 = function (config, callback) {
+    callback = callback || function () {};
     this._config = config;
     this.debug = new debugConsole(config.DEBUG);
     this._config.ak_address = this._config.ak_address || AK8963.ADDRESS;
     this._config.magCalibration = this._config.magCalibration || AK8963.DEFAULT_CALIBRATION;
 
     // connection with magnetometer
-    sleep.usleep(10000);
+    msleep(10);
     var buffer = this.getIDDevice();
 
     if (buffer & AK8963.WHO_AM_I_RESPONSE) {
         this.getSensitivityAdjustmentValues();
-        sleep.usleep(10000);
+        msleep(10);
         this.setCNTL(AK8963.CNTL_MODE_CONTINUE_MEASURE_2);
     } else {
         this.debug.Log('ERROR', 'AK8963: Device ID is not equal to 0x' + AK8963.WHO_AM_I_RESPONSE.toString(16) + ', device value is 0x' + buffer.toString(16));
@@ -516,7 +542,7 @@ var ak8963 = function(config, callback) {
     callback(true);
 };
 
-ak8963.prototype.printSettings = function() {
+ak8963.prototype.printSettings = function () {
     var MODE_LST = {
         0: '0x00 (Power-down mode)',
         1: '0x01 (Single measurement mode)',
@@ -541,14 +567,14 @@ ak8963.prototype.printSettings = function() {
 
 /**---------------------|[ GET ]|--------------------**/
 
-ak8963.prototype.getDataReady = function() {
+ak8963.prototype.getDataReady = function () {
     if (i2c1) {
         return i2c1.readByteSync(AK8963.ADDRESS, AK8963.ST1);
     }
     return false;
 };
 
-ak8963.prototype.getIDDevice = function() {
+ak8963.prototype.getIDDevice = function () {
     if (i2c1) {
         return i2c1.readByteSync(AK8963.ADDRESS, AK8963.WHO_AM_I);
     }
@@ -566,21 +592,21 @@ ak8963.prototype.getSensitivityAdjustmentValues = function () {
     // Need to set to Fuse mode to get valid values from this.
     var currentMode = this.getCNTL();
     this.setCNTL(AK8963.CNTL_MODE_FUSE_ROM_ACCESS);
-    sleep.usleep(10000);
+    msleep(10);
 
     // Get the ASA* values
-    this.asax = ((i2c1.readByteSync(AK8963.ADDRESS,AK8963.ASAX) - 128) * 0.5 / 128 + 1);
-    this.asay = ((i2c1.readByteSync(AK8963.ADDRESS,AK8963.ASAY) - 128) * 0.5 / 128 + 1);
-    this.asaz = ((i2c1.readByteSync(AK8963.ADDRESS,AK8963.ASAZ) - 128) * 0.5 / 128 + 1);
+    this.asax = ((i2c1.readByteSync(AK8963.ADDRESS, AK8963.ASAX) - 128) * 0.5 / 128 + 1);
+    this.asay = ((i2c1.readByteSync(AK8963.ADDRESS, AK8963.ASAY) - 128) * 0.5 / 128 + 1);
+    this.asaz = ((i2c1.readByteSync(AK8963.ADDRESS, AK8963.ASAZ) - 128) * 0.5 / 128 + 1);
 
     // Return the mode we were in before
     this.setCNTL(currentMode);
 };
 
-ak8963.prototype.getMagAttitude = function() {
+ak8963.prototype.getMagAttitude = function () {
     // Get the actual data
     const buffer = Buffer.from(new ArrayBuffer(6));
-    i2c1.readI2cBlockSync(AK8963.ADDRESS,AK8963.XOUT_L, 6, buffer);
+    i2c1.readI2cBlockSync(AK8963.ADDRESS, AK8963.XOUT_L, 6, buffer);
     var cal = this._config.magCalibration;
 
     // For some reason when we read ST2 (Status 2) just after reading byte, this ensures the
@@ -588,7 +614,7 @@ ak8963.prototype.getMagAttitude = function() {
     // be fresh.  The setTimeout ensures this read goes to the back of the queue, once all other
     // computation is done.
     setTimeout(function () {
-        i2c1.readByteSync(AK8963.ADDRESS,AK8963.ST2);
+        i2c1.readByteSync(AK8963.ADDRESS, AK8963.ST2);
     }, 0);
 
     return [
@@ -598,16 +624,16 @@ ak8963.prototype.getMagAttitude = function() {
     ];
 };
 
-ak8963.prototype.getCNTL = function() {
+ak8963.prototype.getCNTL = function () {
     if (i2c1) {
-        return i2c1.readByteSync(AK8963.ADDRESS,AK8963.CNTL);
+        return i2c1.readByteSync(AK8963.ADDRESS, AK8963.CNTL);
     }
     return false;
 };
 
-ak8963.prototype.setCNTL = function(mode) {
+ak8963.prototype.setCNTL = function (mode) {
     if (i2c1) {
-        return i2c1.writeByteSync(AK8963.ADDRESS,AK8963.CNTL, mode);
+        return i2c1.writeByteSync(AK8963.ADDRESS, AK8963.CNTL, mode);
     }
     return false;
 };
@@ -620,7 +646,7 @@ ak8963.prototype.constructor = ak8963;
 // /** ---------------------------------------------------------------------- **/ //
 ////////////////////////////////////////////////////////////////////////////////////
 
-mpu9255.prototype.Kalman_filter = function() {
+mpu9255.prototype.Kalman_filter = function () {
     this.Q_angle = 0.001;
     this.Q_bias = 0.003;
     this.R_measure = 0.03;
@@ -629,13 +655,16 @@ mpu9255.prototype.Kalman_filter = function() {
     this.bias = 0;
     this.rate = 0;
 
-    this.P = [[0, 0], [0, 0]];
+    this.P = [
+        [0, 0],
+        [0, 0]
+    ];
 
     this.S = 0;
     this.K = [];
     this.Y = 0;
 
-    this.getAngle = function(newAngle, newRate, dt) {
+    this.getAngle = function (newAngle, newRate, dt) {
 
         this.rate = newRate - this.bias;
         this.angle += dt * this.rate;
@@ -663,15 +692,31 @@ mpu9255.prototype.Kalman_filter = function() {
         return this.angle;
     };
 
-    this.getRate     = function() { return this.rate; };
-    this.getQangle   = function() { return this.Q_angle; };
-    this.getQbias    = function() { return this.Q_bias; };
-    this.getRmeasure = function() { return this.R_measure; };
+    this.getRate = function () {
+        return this.rate;
+    };
+    this.getQangle = function () {
+        return this.Q_angle;
+    };
+    this.getQbias = function () {
+        return this.Q_bias;
+    };
+    this.getRmeasure = function () {
+        return this.R_measure;
+    };
 
-    this.setAngle    = function(value) { this.angle = value; };
-    this.setQangle   = function(value) { this.Q_angle = value; };
-    this.setQbias    = function(value) { this.Q_bias = value; };
-    this.setRmeasure = function(value) { this.R_measure = value; };
+    this.setAngle = function (value) {
+        this.angle = value;
+    };
+    this.setQangle = function (value) {
+        this.Q_angle = value;
+    };
+    this.setQbias = function (value) {
+        this.Q_bias = value;
+    };
+    this.setRmeasure = function (value) {
+        this.R_measure = value;
+    };
 };
 
 ////////////////////////////////////////////////////////////////////////////////////
@@ -680,11 +725,11 @@ mpu9255.prototype.Kalman_filter = function() {
 // /** ---------------------------------------------------------------------- **/ //
 ////////////////////////////////////////////////////////////////////////////////////
 
-var debugConsole = function(debug) {
+var debugConsole = function (debug) {
     this.enabled = debug || false;
 };
 
-debugConsole.prototype.Log = function(type, str) {
+debugConsole.prototype.Log = function (type, str) {
     if (this.enabled) {
         var date = new Date();
         var strdate = date.getDate() + '/' + (date.getMonth() + 1) + '/' + date.getFullYear();
