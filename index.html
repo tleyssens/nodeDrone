@@ -7,20 +7,14 @@
         body {
             margin: 0;
         }
-
-        canvas {
-            width: 100%;
-            height: 100%
-        }
     </style>
     <!-- include socket.io client side script -->
     <script type="text/javascript" src="libs/socket.io.js"></script>
     <script type="text/javascript" src="libs/jquery.min.js"></script>
     <script type="text/javascript" src="libs/moment.js"></script>
+    <script type='text/javascript' src='libs/smoothie.js'></script>
+    <script type="text/javascript" src="libs/chartIMU.js"></script>
     <script>
-        //initialize socket io connection
-        var socket = io.connect();
-
         socket.on('disconnect', function () {
             $("body").html("Server Connection Lost!");
         });
@@ -96,6 +90,7 @@
 
         //listen and update heading
         socket.on('orientation', function (data) {
+            updateChart(data); //staat in chartIMU;.js
             //timestamp output = YYYY-MM-DD H:MM:SS
             var timestamp = moment().format("YYYY-MM-DD HH:mm:ss:SS");
 
@@ -137,6 +132,7 @@
             if ($('#status_messages tr').length > 10) {
                 $('#status_messages tr:last').remove();
             }
+
             //timestamp output = YYYY-MM-DD H:MM:SS
             var timestamp = moment().format("YYYY-MM-DD HH:mm:ss:SS");
             if (data) {
@@ -166,7 +162,7 @@
     <link rel="stylesheet" href="libs/font-awesome.min.css">
 </head>
 
-<body>
+<body onload="initChart()">
     <div class="container-fluid">
         <span class="fa fa-battery"> <span id="battery_life_status">0%</span></span>
         <span class="fa fa-map-marker"> <span id="gps_coordinates">0</span></span>
@@ -332,6 +328,18 @@
                             <th>Details</th>
                         </tr>
                     </table>
+                </div>
+            </div>
+        </div>
+
+    </div>
+    <div class="container">
+        <div class="row card-deck">
+            <div class="card">
+                <div class="card-header">Controls</div>
+                <div class="card-body">
+                    <h5>IMU</h5>
+                    <canvas id="mycanvas" width="500" height="300"></canvas>
                 </div>
             </div>
         </div>

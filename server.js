@@ -220,8 +220,8 @@ app.get('/', function (req, res) {
 });
 
 //Start broadcasting server over specified port
-server.listen(8080);
-console.log("Running at Port 8080");
+server.listen(8090);
+console.log("Running at Port 8090");
 
 //////////////////////////////////////////////////////////////////////////////
 ////////////////INITIALIZE all electronic control units to READY state //////
